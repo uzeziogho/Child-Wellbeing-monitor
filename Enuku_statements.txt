@@ -1,0 +1,548 @@
+﻿Code Snippet
+
+
+1. Poverty Inequality
+create VIEW EduandHygiene
+as 
+
+
+select childid,round,chsex,momedu,dadedu,caredu,drwaterq,toiletq,typesite
+from dbo.india_constructed
+union 
+
+
+select childid,round,chsex,momedu,dadedu,caredu,drwaterq,toiletq,typesite
+from dbo.peru_constructed
+union
+
+
+select childid,round,chsex,momedu,dadedu,caredu,drwaterq_new,toiletq_new,typesite
+from dbo.ethiopia_constructed
+
+
+--Number of kids without access to clean water or toilet whose parents are uneducated(Secondary school)
+select count(*) as kidsWithoutCleanWatOrToilets 
+from dbo.EduandHygiene
+where momedu<=13 and dadedu<=13 and caredu<=13 and (drwaterq=0 and toiletq=0)
+
+
+--Number of kids with access to clean water or toilet whose parents are educated(Secondary)
+select count(*) as kidsWithEducatedParentsCleanWatOrToilets 
+from dbo.EduandHygiene
+where momedu<=13 and dadedu<=13 and caredu<=13 and (drwaterq=1 and toiletq=1)
+
+
+--Number of kids without access to clean water or toilet whose parents are educated(Post secondary)
+select count(*) as kidsWithoutCleanWatOrToiletsParentsEdu 
+from dbo.EduandHygiene
+where momedu>=13 and dadedu>=13 and caredu>=13 and (drwaterq=0 and toiletq=0)
+
+
+--Number of kids with access to clean water or toilet whose parents are educated(Post secondary)
+select count(*) as kidsWithCleanWatOrToiletsEducatedParents 
+from dbo.EduandHygiene
+where momedu>=13 and dadedu>=13 and caredu>=13 and (drwaterq=1 and toiletq=1)
+
+
+--Number of kids with access to clean water whose parents are educated(Post secondary)
+select count(*) as kidsWithCleanWatOrEducatedParents 
+from dbo.EduandHygiene
+where momedu>=13 and dadedu>=13 and caredu>=13 and (drwaterq=1 and toiletq=0)
+
+
+--Number of kids with access to clean toilet whose parents are educated(Post secondary)
+select count(*) as kidsWithCleanWatOrEducatedParents 
+from dbo.EduandHygiene
+where momedu>=13 and dadedu>=13 and caredu>=13 and (drwaterq=0 and toiletq=1)
+
+
+create VIEW HealthEducationHygieneandFoodDeprivation
+as 
+
+
+select childid,round,dpt,polio,HIB,measles,delivery,tetanus,chhealth,preprim,enrol,engrade,drwaterq,toiletq,elecq,foodsec
+from dbo.india_constructed
+union 
+
+
+select childid,round,dpt,polio,HIB,measles,delivery,tetanus,chhealth,preprim,enrol,engrade,drwaterq,toiletq,elecq,foodsec
+from dbo.peru_constructed
+union
+
+
+select childid,round,dpt,polio,HIB,measles,delivery,tetanus,chhealth,preprim,enrol,engrade,drwaterq_new,toiletq_new,elecq_new,foodsec
+from dbo.ethiopia_constructed
+
+
+
+
+--Number of kids without access to healthcare measured with lack of access to vaccinations
+select count(distinct(childid)) as HealthcareDepravation
+from HealthEducationHygieneandFoodDeprivation
+where chhealth>=3
+
+
+select distinct(childid)
+from HealthEducationHygieneandFoodDeprivation
+
+
+select *
+from HealthEducationHygieneandFoodDeprivation
+
+
+select count(distinct(childid)) as EducationDepravation
+from HealthEducationHygieneandFoodDeprivation
+where enrol=0 
+
+
+--Lack of drinking water
+select count(distinct(childid)) as LackofdrinkingWater
+from HealthEducationHygieneandFoodDeprivation
+where drwaterq=0 and childid like "E%"
+
+
+--Number of children without access to clean toilets
+select count(distinct(childid)) as SanitationDeprivation
+from HealthEducationHygieneandFoodDeprivation
+where toiletq=0
+
+
+--Number of children without access to clean drinking water and proper water
+select count(distinct(childid)) as CleanWaterandSanitationDeprivation
+from HealthEducationHygieneandFoodDeprivation
+where drwaterq=0 and toiletq=0
+
+
+Stored procedures
+--Select health data from countries
+CREATE PROCEDURE SelectHealthData @childid nvarchar(50), @chhealth int
+AS
+SELECT distinct(childid) FROM HealthEducationHygieneandFoodDeprivation 
+WHERE childid like '%'+@childid+'%' and chhealth=@chhealth
+GO
+
+
+exec SelectHealthData 'ET', 3;
+
+
+--Enrolled children and their country
+create procedure FindEnrolledkidsPerCountry @childid nvarchar(50), @enrol int
+AS
+Select distinct(childid) as Country,enrol=
+case 
+                when enrol=1 then 'Enrolled'
+                when enrol=0 then 'Not Enrolled'
+                else 'Not Identified'
+end
+from HealthEducationHygieneandFoodDeprivation
+where childid like'%'+@childid+'%' and enrol=@enrol
+
+
+exec FindEnrolledkidsPerCountry'ET', 1;
+
+
+
+
+2. Education Inequality
+—Create student table
+select UNIQUEID,STDDINT,SCHOOLID,YLCHILDID,CLASSID,STUDENTID,GENDER,AGE,ETHNICITY
+into StudentTable
+from dbo.vietnam_wave_1
+
+
+–Create Schooltable
+select distinct(schoolid),province=
+        Case
+                when province=1 then 'Ben Tre'
+                when province=2 then 'Da Nang'
+                when province=3 then 'Hung Yen'
+                when province=4 then 'Lao Cai'
+                when province=5 then 'Phu Yen'
+                else 'Not Identified'
+        end,LOCALITY,DISTRICTCODE,HTLWSGRD,HTHGHGRD,HTNMSTEN,HTYREST,HTBOARD,HTNONCMP,HTEXTCUR,HTNOCMCL,HTTYPSCH=
+        Case
+                when HTTYPSCH=1 then 'Government'
+                when HTTYPSCH=2 then 'Private'
+                when HTTYPSCH=3 then 'Other'
+                Else 'Not Identified'
+        end
+into SchoolTable
+from dbo.vietnam_wave_1
+
+
+–Create parent table
+select UNIQUEID,MOM_EDUC,MOM_READ,DAD_EDUC,DAD_READ,STPPLHM,STSIBOLD,STSIBYNG
+into ParentTable
+From dbo.vietnam_wave_1
+
+
+—Create student health table
+select UNIQUEID,STDMEAL,STDHLTH0,STDHLTH1,STDHLTH2,STDHLTH3,STDHLTH4,STDHLTH5,STDHLTH6
+into StudentHealthTable
+From dbo.vietnam_wave_1
+
+
+
+
+–create hometable
+select UNIQUEID,STPLSTDY,STHVMTEL,STHVRADO,STHVTELE,STHVBIKE,STHVMTBK,STHVDESK,STHVCHR,STHVLAMP,STHVEFAN,STHVAIRC,
+STHVCAR,STHVCOMP,STHVINTR,STHVFRDG,STHVMCRO,STHVDVD,STHVCBLE
+into Hometable
+from dbo.vietnam_wave_1
+
+
+–Create class table
+select CLASSID,SCHOOLID,UNIQUEID,ATDTMSY,GRLENRL,BOYENRL,TTLENRL,TGRLENRL,TBOYENRL,TTTLENRL,SCALLCT,GRPABLTY
+into ClassTable
+from dbo.vietnam_wave_1
+
+
+–create Class equipment table
+select CLASSID,SCAVLB1,SCAVLB2,SCAVLB3,SCAVLB4,SCAVLB5,SCAVLB6,SCAVLB7,SCAVLB8,SCAVLB9,SCAVLB10
+into ClassEquipmentTable
+from dbo.vietnam_wave_1
+
+
+- -create headtechertable
+select distinct(SCHOOLID),HTAGE,HTSEX,HTETHGRP,HTRELGN,HTMTHTNG,HTCURRLE,HTFRMPRV,HTYRSHT,HTLVLEDC,HTLVLTCH,
+HTEXCTCH,HTTYPSCH=
+        Case
+                when HTTYPSCH=1 then 'Government'
+                when HTTYPSCH=2 then 'Private'
+                when HTTYPSCH=3 then 'Other'
+                Else 'Not Identified'
+        end
+into HeadTeacherTable
+from dbo.vietnam_wave_1
+
+
+–Create student study table
+select STMTHWRK=
+        Case
+                when STMTHWRK=0 then 'Rarely/Never'
+                when STMTHWRK=1 then 'Once a week'
+                when STMTHWRK=2 then '2 times per week'
+                when STMTHWRK=3 then '3 times per week'
+                when STMTHWRK=4 then 'More than 3 times per week'
+        End,STMWRKCH=
+        Case
+                when STMWRKCH=0 then 'I never get homework in Maths'
+                when STMWRKCH=1 then 'Rarely'
+                when STMWRKCH=2 then 'Occasionally'
+                when STMWRKCH=3 then 'Always/Frequently'
+        End,STETHWRK=
+        Case
+                when STETHWRK=0 then 'Rarely/Never'
+                when STETHWRK=1 then 'Once a week'
+                when STETHWRK=2 then '2 times per week'
+                when STETHWRK=3 then '3 times per week'
+                when STETHWRK=4 then 'More than 3 times per week'
+        End,STEWRKCH=
+        Case
+                when STEWRKCH=0 then 'I never get homework in English'
+                when STEWRKCH=1 then 'Rarely'
+                when STEWRKCH=2 then 'Occasionally'
+                when STEWRKCH=3 then 'Always/Frequently'
+        End,STEWRKCM=
+        Case
+                when STMWRKCH=0 then 'I never get homework in English'
+                when STMWRKCH=1 then 'Rarely'
+                when STMWRKCH=2 then 'Occasionally'
+                when STMWRKCH=3 then 'Always/Frequently'
+        End,STTMMWRK=
+        Case
+                when STTMMWRK=0 then 'Do not spend time studying maths that outside school'
+                when STTMMWRK=1 then 'Less than one hour'
+                when STTMMWRK=2 then 'From one to two hours'
+                when STTMMWRK=3 then 'More than two hours'
+        End,STTMEWRK=
+        Case
+                when STTMEWRK=0 then 'Do not spend time studying english that outside school'
+                when STTMEWRK=1 then 'Less than one hour'
+                when STTMEWRK=2 then 'From one to two hours'
+                when STTMEWRK=3 then 'More than two hours'
+        End,UNIQUEID
+into StudentStudyTable
+from dbo.Vietnam_wave_2
+
+
+– create Firstt test table
+select UNIQUEID,SCHOOLID,YLCHILDID,PROVINCE=
+        Case
+                when province=1 then 'Ben Tre'
+                when province=2 then 'Da Nang'
+                when province=3 then 'Hung Yen'
+                when province=4 then 'Lao Cai'
+                when province=5 then 'Phu Yen'
+                else 'Not Identified'
+        end,ENG_TEST,ENG_RAWSCORE,MATH_TEST,MATH_RAWSCORE
+into FirstTable
+from dbo.vietnam_wave_1
+
+
+–Create Teacher table
+select CLASSID,SCMNMTIN,SCMNENIN,SCTXTMTH,SCTXTENG
+into TeacherTable
+From dbo.vietnam_wave_1
+
+
+–Create Attendance table
+select UNIQUEID,STADDMT=
+        Case
+                when STADDMT=1 then 'Yes, to excel in class'
+                when STADDMT=2 then 'Yes, to keep up in class'
+                when staddmt=3 THEN 'No'
+        END,STADDEN=
+        Case
+                when STADDEN=1 then 'Yes, to excel in class'
+                when STADDEN=2 then 'Yes, to keep up in class'
+                when STADDEN=3 THEN 'No'
+        END,STADDOT=
+        Case
+                when STADDOT=1 then 'Yes, to excel in class'
+                when STADDOT=2 then 'Yes, to keep up in class'
+                when STADDOT=3 THEN 'No'
+        END,STPRVMT=
+        Case
+                when STPRVMT=1 then 'Yes, to excel in class'
+                when STPRVMT=2 then 'Yes, to keep up in class'
+                when STPRVMT=3 THEN 'No'
+        END,STPRVEN=
+        Case
+                when STPRVEN=1 then 'Yes, to excel in class'
+                when STPRVEN=2 then 'Yes, to keep up in class'
+                when STPRVEN=3 THEN 'No'
+        END,STPRVOT=
+        Case
+                when STPRVEN=1 then 'Yes, to excel in class'
+                when STPRVEN=2 then 'Yes, to keep up in class'
+                when STPRVEN=3 THEN 'No'
+        END
+into AttendanceTable
+From dbo.vietnam_wave_2
+
+
+
+
+–Create second Test table
+Select UNIQUEID,SCHOOLID,ENG_TEST,ENG_RAWSCORE,MATH_TEST,MATH_RAWSCORE,TS_TEST
+into SecondTestTable
+from dbo.Vietnam_wave_2
+
+
+---View Young lives kids Test scores
+create view YLScores
+as
+select  FirstTable.UNIQUEID as UniqueID,FirstTable.YLCHILDID as YoungLivesID,FirstTable.SCHOOLID as SchoolID,FirstTable.MATH_RAWSCORE as MathTest1,FirstTable.ENG_RAWSCORE as EngTest1,SecondTestTable.MATH_RAWSCORE as MathTest2,
+SecondTestTable.ENG_RAWSCORE as EngTest2,FirstTable.PROVINCE
+from FirstTable
+inner join SecondTestTable
+on FirstTable.UNIQUEID=SecondTestTable.UNIQUEID
+where FirstTable.MATH_TEST like 'Yes' and FirstTable.ENG_TEST like 'Yes' and SecondTestTable.MATH_TEST like 'yes' and 
+SecondTestTable.ENG_TEST like 'yes' and YLCHILDID <>''
+
+
+---Test Scores by Region
+select FirstTable.MATH_RAWSCORE as MathTest1,FirstTable.ENG_RAWSCORE as EnglishTest1,SecondTestTable.MATH_RAWSCORE as MathTest2,SecondTestTable.ENG_RAWSCORE as EnglishTest2,FirstTable.PROVINCE
+from FirstTable
+inner join SecondTestTable
+on FirstTable.UNIQUEID=SecondTestTable.UNIQUEID
+where FirstTable.MATH_TEST like 'Yes' and FirstTable.ENG_TEST like 'Yes' and SecondTestTable.MATH_TEST like 'yes' and 
+SecondTestTable.ENG_TEST like 'yes' and FirstTable.ENG_RAWSCORE>35
+
+
+---Teacher Responsibility
+Create view HomeworkFreqandTestScores
+as
+select FirstTable.UNIQUEID as UniqueID,FirstTable.MATH_RAWSCORE as MathTest1,FirstTable.ENG_RAWSCORE as EnglishTest1,StudentStudyTable.STMTHWRK as FrquencyofMathHomework,StudentStudyTable.STMWRKCH as FreqofMathHomeworkCheck,
+StudentStudyTable.STETHWRK as FrquencyofEngHomework,StudentStudyTable.STEWRKCH as FreqofEngHomeworkcheck
+from FirstTable
+inner join StudentStudyTable
+on FirstTable.UNIQUEID=StudentStudyTable.UNIQUEID
+where FirstTable.MATH_RAWSCORE <> '' and FirstTable.ENG_RAWSCORE <> ''
+
+
+
+
+select FirstTable.MATH_RAWSCORE,FirstTable.ENG_RAWSCORE,StudentStudyTable.STMTHWRK,StudentStudyTable.STMWRKCH,
+StudentStudyTable.STETHWRK,StudentStudyTable.STEWRKCH
+from FirstTable
+inner join StudentStudyTable
+on FirstTable.UNIQUEID=StudentStudyTable.UNIQUEID
+where FirstTable.MATH_RAWSCORE <> '' and FirstTable.ENG_RAWSCORE <> '' or StudentStudyTable.STMTHWRK like 'A%'
+order by MATH_RAWSCORE Asc,ENG_RAWSCORE Asc
+
+
+---ccreate view tutorials vs scores
+create View ExtraClassvsTestScores
+as
+select FirstTable.UNIQUEID,FirstTable.MATH_RAWSCORE,FirstTable.ENG_RAWSCORE,AttendanceTable.STADDMT as NonComplusoryMathClass,AttendanceTable.STPRVMT as PrivateMathsClasses 
+,AttendanceTable.STADDEN as NonCompulsoryEnglshClass,AttendanceTable.STPRVEN as  PrivateEnglishClasses 
+from FirstTable
+inner join AttendanceTable
+on FirstTable.UNIQUEID=AttendanceTable.UNIQUEID
+where FirstTable.MATH_RAWSCORE <> '' and FirstTable.ENG_RAWSCORE <> '' AND (STADDMT IS NOT NULL AND STPRVMT IS NOT NULL AND 
+STADDEN IS NOT NULL AND STPRVOT IS NOT NULL)
+
+
+–Create View showing relationship between Results and tutorials
+Create view ExamTutorialsView
+as
+select FirstTable.SCHOOLID,FirstTable.UNIQUEID,FirstTable.MATH_RAWSCORE,FirstTable.ENG_RAWSCORE,AttendanceTable.STADDMT as NonComplusoryMathClass,AttendanceTable.STPRVMT as PrivateMathsClasses 
+,AttendanceTable.STADDEN as NonCompulsoryEnglshClass,AttendanceTable.STPRVEN as  PrivateEnglishClasses 
+from FirstTable
+inner join AttendanceTable
+on FirstTable.UNIQUEID=AttendanceTable.UNIQUEID
+where FirstTable.MATH_RAWSCORE <> '' and FirstTable.ENG_RAWSCORE <> '' AND (STADDMT IS NOT NULL AND STPRVMT IS NOT NULL AND 
+STADDEN IS NOT NULL AND STPRVOT IS NOT NULL)
+–Create view showing relationship between attendance and test results
+create view AttendanceView
+as
+select distinct(ClassTable.SCHOOLID),ClassTable.TTLENRL as TotalEnrolment,ClassTable.TTTLENRL as TotalAttendance,SchoolTable.HTTYPSCH as TypeOfSchool 
+,SchoolTable.province
+from ClassTable
+inner join SchoolTable
+on ClassTable.SCHOOLID=SchoolTable.SCHOOLID
+
+
+
+
+--Views comparing Kids result and Parental Educational Level
+create VIEW KidsExamPArentalEDULevel
+as 
+
+
+select MOM_READ,MOM_EDUC,DAD_READ,DAD_EDUC,MATH_RAWSCORE,ENG_RAWSCORE,ENG_TEST,MATH_TEST
+from dbo.vietnam_wave_1
+
+
+union
+
+
+select MOM_READ,MOM_EDUC,DAD_READ,DAD_EDUC,MATH_RAWSCORE,ENG_RAWSCORE,ENG_TEST,MATH_TEST
+from dbo.Vietnam_wave_2
+
+
+
+
+select Engscore1,STPRVMT,MathScore1
+from EducationExpectations
+
+
+
+
+--Academic Expectations per locality
+select LOCALITY,GENDER,MOM_READ,MOM_EDUC,dad_read,DAD_EDUC,STHGHGRD,PROVINCE
+from dbo.vietnam_wave_1
+where STHGHGRD>5 and MOM_READ=1 and DAD_READ=1
+--group by PROVINCE,LOCALITY,GENDER,MOM_READ,DAD_READ
+--order by LOCALITY
+
+
+--Attendance,Assignments andlocation
+
+
+select Uniqueid,STMTHWRK,STMWRKCH,STETHWRK,STEWRKCM,STPRVMT,STPRVEN
+from dbo.Vietnam_wave_2
+
+
+3. Crime profile snippets
+/****** Script for SelectTopNRows command from SSMS  ******/
+SELECT TOP (1000) [Dataset]
+      ,[Crime ID]
+      ,[Month]
+      ,[Reported by]
+      ,[Falls within]
+      ,[Longitude]
+      ,[Latitude]
+      ,[Location]
+      ,[LSOA code]
+      ,[LSOA name]
+      ,[Crime type]
+      ,[Last outcome category]
+      ,[Context]
+  FROM [GreaterManchesterCrimes].[dbo].['Greater_Manchester_Crimes]
+
+
+  select ReportedBy,fallswithin
+  from dbo.Greater_Manchester_Crimes
+  
+--Most common type of crime,their location and amount.
+  select crime_type,Location,count(crime_type) as QuantityOfCrime
+  from dbo.greater_manchester_crimes
+  group by crime_type,location
+  order by count(crime_type) desc
+
+
+  --Most common crimes and their amount
+  select crime_type,count(crime_type) as QuantityOfCrime
+  from dbo.greater_manchester_crimes
+  group by crime_type
+  order by count(crime_type) desc
+
+
+  ---Most common location for crimes and their amount
+  select location,count(crime_type) as QuantityOfCrome
+  from dbo.Greater_Manchester_Crimes
+  group by location
+  order by count(crime_type) desc
+
+
+--LSOA areas and the most prevalent crimes
+  select Crime_type,LSOA_name,count(crime_type) as QuantityOfCrome
+  from dbo.Greater_Manchester_Crimes
+  group by Crime_type,LSOA_name
+  order by count(crime_type) desc
+
+
+ --LSOA areas with the most crimes arranged in descending order 
+  select LSOA_name,count(crime_type) as QuantityOfCrome
+  from dbo.Greater_Manchester_Crimes
+  group by LSOA_name
+  order by count(crime_type) desc
+
+
+ --Months of the Year with the most crimes committed
+  select month(Month) as MonthOfTheYear,count(crime_type) as QuantityOfCrome
+  from dbo.Greater_Manchester_Crimes
+  group by month(Month)
+  order by count(crime_type) desc
+
+
+  --Outcomes of crimes with the most crimes committed
+  select Last_outcome_category,count(crime_type) as Amount
+  from dbo.Greater_Manchester_Crimes
+  where Last_outcome_category <> ''
+  group by Last_outcome_category
+  order by count(crime_type) 
+
+
+  select Crime_type,Last_outcome_category,count(crime_type) as Amount
+  from dbo.Greater_Manchester_Crimes
+  where Last_outcome_category <> ''
+  group by crime_type,Last_outcome_category
+  order by count(crime_type) desc
+
+
+  select Crime_type,Last_outcome_category
+  from dbo.Greater_Manchester_Crimes
+  where Last_outcome_category <> ''
+  group by crime_type,Last_outcome_category
+ 
+  select count(CrimeID)
+  from dbo.Greater_Manchester_Crimes
+  where CrimeID <>''
+
+
+
+
+  create view CrimeGeoAnalysis
+  as 
+
+
+  select dbo.Greater_Manchester_Crimes.Crime_type,dbo.Greater_Manchester_Crimes.Latitude,dbo.Greater_Manchester_Crimes.Longitude,
+  dbo.Greater_Manchester_Crimes.Location,dbo.Greater_Manchester_Crimes.Month,dbo.LSOAData.LSOA_name,dbo.LSOAData.LSOA_Code,
+  dbo.LSOAData.LA_Code_2018,dbo.LSOAData.LA_name_2018,dbo.LSOAData.LA_Code_2021,dbo.LSOAData.LA_name_2021,dbo.LSOAData.All_Ages
+  from dbo.Greater_Manchester_Crimes
+  inner join dbo.LSOAData
+  on dbo.Greater_Manchester_Crimes.LSOA_name=dbo.LSOAData.LSOA_name
